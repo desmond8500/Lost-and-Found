@@ -89,6 +89,20 @@ class Item extends Model
     }
 
     /**
+     * Filtres de recherche (site web et API) : q, type, category, city.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    #[Scope]
+    protected function filter(Builder $query, array $filters): void
+    {
+        $query->search($filters['q'] ?? null)
+            ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type))
+            ->when($filters['category'] ?? null, fn (Builder $query, string $category) => $query->where('category', $category))
+            ->when($filters['city'] ?? null, fn (Builder $query, string $city) => $query->whereLike('city', "%{$city}%"));
+    }
+
+    /**
      * Génère un nouveau jeton de gestion, stocke son empreinte
      * et retourne le jeton en clair (à ne transmettre qu'à l'auteur).
      */
@@ -120,6 +134,18 @@ class Item extends Model
     public function isResolved(): bool
     {
         return $this->resolved_at !== null;
+    }
+
+    /**
+     * Supprime l'annonce, sa photo et (en cascade) ses messages.
+     */
+    public function deleteWithPhoto(): void
+    {
+        if ($this->photo_path) {
+            Storage::disk('public')->delete($this->photo_path);
+        }
+
+        $this->delete();
     }
 
     public function photoUrl(): ?string

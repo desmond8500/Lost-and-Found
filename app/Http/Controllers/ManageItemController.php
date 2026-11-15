@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Item;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 /**
@@ -42,11 +41,7 @@ class ManageItemController extends Controller
     {
         $this->ensureValidToken($item, $token);
 
-        if ($item->photo_path) {
-            Storage::disk('public')->delete($item->photo_path);
-        }
-
-        $item->delete();
+        $item->deleteWithPhoto();
 
         return redirect()
             ->route('items.index')

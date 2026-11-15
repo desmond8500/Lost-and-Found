@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ItemCategory;
+use App\Actions\PublishItem;
 use App\Enums\ItemType;
+use App\Http\Requests\SearchItemsRequest;
 use App\Http\Requests\StoreItemRequest;
-use App\Mail\ItemPublished;
 use App\Models\Item;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ItemController extends Controller
@@ -18,21 +16,13 @@ class ItemController extends Controller
     /**
      * Liste des annonces ouvertes, avec recherche et filtres.
      */
-    public function index(Request $request): View
+    public function index(SearchItemsRequest $request): View
     {
-        $filters = $request->validate([
-            'q' => ['nullable', 'string', 'max:100'],
-            'type' => ['nullable', Rule::enum(ItemType::class)],
-            'category' => ['nullable', Rule::enum(ItemCategory::class)],
-            'city' => ['nullable', 'string', 'max:80'],
-        ]);
+        $filters = $request->validated();
 
         $items = Item::query()
             ->open()
-            ->search($filters['q'] ?? null)
-            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
-            ->when($filters['category'] ?? null, fn ($query, $category) => $query->where('category', $category))
-            ->when($filters['city'] ?? null, fn ($query, $city) => $query->whereLike('city', "%{$city}%"))
+            ->filter($filters)
             ->latest('occurred_on')
             ->latest('id')
             ->paginate(12)
@@ -57,18 +47,12 @@ class ItemController extends Controller
     /**
      * Enregistre l'annonce et envoie le lien de gestion à son auteur.
      */
-    public function store(StoreItemRequest $request): RedirectResponse
+    public function store(StoreItemRequest $request, PublishItem $publishItem): RedirectResponse
     {
-        $item = new Item($request->safe()->except(['photo', 'website']));
-
-        if ($request->hasFile('photo')) {
-            $item->photo_path = $request->file('photo')->store('items', 'public');
-        }
-
-        $token = $item->issueManageToken();
-        $item->save();
-
-        Mail::to($item->contact_email)->send(new ItemPublished($item, $token));
+        [$item, $token] = $publishItem->handle(
+            $request->safe()->except(['photo', 'website']),
+            $request->file('photo'),
+        );
 
         return redirect()
             ->to($item->manageUrl($token))
