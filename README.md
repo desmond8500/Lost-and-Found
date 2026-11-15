@@ -25,6 +25,23 @@ composer run dev           # serveur, file d'attente, logs et Vite
 
 Les e-mails sont écrits dans `storage/logs/laravel.log` tant que `MAIL_MAILER=log`.
 
+## API mobile
+
+L'application mobile ([LostAndFoundMobile](https://github.com/desmond8500/LostAndFoundMobile)) utilise l'API JSON `/api/v1`, définie dans `routes/api.php` :
+
+| Méthode | Route | Rôle |
+| --- | --- | --- |
+| GET | `/api/v1/meta` | Types et catégories |
+| GET | `/api/v1/items?q=&type=&category=&city=&page=` | Recherche paginée |
+| GET | `/api/v1/items/{id}` | Fiche |
+| POST | `/api/v1/items` (multipart) | Publication, renvoie `manage_token` |
+| POST | `/api/v1/items/{id}/messages` | Contacter l'auteur |
+| GET | `/api/v1/items/{id}/manage` | Annonce + messages (en-tête `X-Manage-Token`) |
+| PATCH | `/api/v1/items/{id}/resolve` | Marquer comme rendu (`X-Manage-Token`) |
+| DELETE | `/api/v1/items/{id}` | Supprimer (`X-Manage-Token`) |
+
+L'e-mail de l'auteur n'est jamais renvoyé par l'API. Le CORS est ouvert sur `api/*` (configuration par défaut de Laravel).
+
 ## Tests
 
 ```sh
